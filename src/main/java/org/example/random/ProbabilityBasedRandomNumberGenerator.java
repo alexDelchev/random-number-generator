@@ -2,16 +2,16 @@ package org.example.random;
 
 import java.util.Arrays;
 import java.util.Objects;
-import java.util.Random;
+import java.util.random.RandomGenerator;
 
 /**
  * A {@code RandomNumberGenerator} which returns predefined values
  * based on predefined probabilities.
  *
- * @implNote This class uses {@code float} arithmetic and {@link Random},
+ * @implNote This class uses {@code float} arithmetic and {@link RandomGenerator},
  * so precision is only approximate and results from
  * {@link #nextNum()} ultimately rely on the approximate
- * uniform distribution of {@code Random} return values.
+ * uniform distribution of the used {@code RandomGenerator} return values.
  */
 public class ProbabilityBasedRandomNumberGenerator implements RandomNumberGenerator {
 
@@ -19,7 +19,7 @@ public class ProbabilityBasedRandomNumberGenerator implements RandomNumberGenera
 
   private static final float MARGIN = 0.0001f;
 
-  private final Random random = new Random();
+  private final RandomGenerator randomGenerator;
 
   private final int[] values;
 
@@ -38,6 +38,9 @@ public class ProbabilityBasedRandomNumberGenerator implements RandomNumberGenera
    * non-null and non-empty, be of the same length, and each value and its
    * probability should have the same index.
    *
+   * @param randomGenerator implementation of {@link RandomGenerator} which
+   *        should produce uniformly distributed values between 0.0 and 1.0
+   *        on calls of {@link RandomGenerator#nextFloat()}
    * @param values {@code int} array containing the possible return values of
    *        {@link RandomNumberGenerator#nextNum()}. Must not be null or empty.
    * @param probabilities {@code float} array containing the respective
@@ -47,15 +50,22 @@ public class ProbabilityBasedRandomNumberGenerator implements RandomNumberGenera
    *        {@code RandomNumberGenerator#nextNum()} is called.
    * @throws IllegalArgumentException if parameters are invalid
    */
-  public ProbabilityBasedRandomNumberGenerator(int[] values, float[] probabilities) {
-    validateInputs(values, probabilities);
+  public ProbabilityBasedRandomNumberGenerator(RandomGenerator randomGenerator,
+                                               int[] values, float[] probabilities) {
+    validateInputs(randomGenerator, values, probabilities);
 
+    this.randomGenerator = randomGenerator;
     this.values = Arrays.copyOf(values, values.length);
     this.probabilities = Arrays.copyOf(probabilities, probabilities.length);
     this.distribution = plotProbabilities(probabilities);
   }
 
-  private void validateInputs(int[] values, float[] probabilities) {
+  private void validateInputs(RandomGenerator randomGenerator, int[] values,
+                              float[] probabilities) {
+    if (randomGenerator == null) {
+      throw new IllegalArgumentException("Parameter randomGenerator cannot be null");
+    }
+
     if (values == null) {
       throw new IllegalArgumentException("Parameter values cannot be null");
     }
@@ -82,21 +92,17 @@ public class ProbabilityBasedRandomNumberGenerator implements RandomNumberGenera
     }
   }
 
-  private float sum(float[] data) {
-    return sum(data, 0, data.length - 1);
-  }
-
   /*
-   * Returns the sum of the elements between the given start (inclusive)
-   * and end (inclusive) indices. Corrects the floating point number summation
+   * Returns the sum of the elements of the given array.
+   * Corrects the floating point number summation
    * error as much as possible using the Kahan summation algorithm.
    */
-  private float sum(float[] data, int startInclusive, int endInclusive) {
+  private float sum(float[] values) {
     float sum = 0.0f;
     float error = 0.0f;
 
-    for (int i = startInclusive; i <= endInclusive; i++) {
-      float value = data[i] - error;
+    for (float v : values) {
+      float value = v - error;
       float currentSum = sum + value;
       error = (currentSum - sum) - value;
       sum = currentSum;
@@ -110,15 +116,21 @@ public class ProbabilityBasedRandomNumberGenerator implements RandomNumberGenera
   }
 
   /*
-   * Effectively returns a new float array of the same size whose elements
-   * represent the sum of the respective preceding elements from the original
-   * array.
+   * Returns a cumulative sum array based on the given array.
+   * Corrects the floating point number summation
+   * error as much as possible using the Kahan summation algorithm.
    */
   private float[] plotProbabilities(float[] probabilities) {
     float[] result = new float[probabilities.length];
+    float sum = 0.0f;
+    float error = 0.0f;
 
     for (int i = 0; i < probabilities.length; i++) {
-      result[i] = sum(probabilities, 0, i);
+      float value = probabilities[i] - error;
+      float currentSum = sum + value;
+      error = (currentSum - sum) - value;
+      sum = currentSum;
+      result[i] = currentSum;
     }
 
     return result;
@@ -140,23 +152,16 @@ public class ProbabilityBasedRandomNumberGenerator implements RandomNumberGenera
     // between 0.0 and 1.0. Use it to check in which
     // distribution range it is located and return the
     // predefined value with the same index
-    float randomNumber = random.nextFloat();
+    float randomNumber = randomGenerator.nextFloat();
 
-    if (randomNumber <= distribution[0]) {
-      return values[0];
+    int resultIndex = Arrays.binarySearch(distribution, randomNumber);
+
+    if (resultIndex < 0) {
+      // resultIndex is the insertion point, use the previous index
+      resultIndex = Math.abs(resultIndex) - 1;
     }
 
-    for (int i = 1; i < distribution.length; i++) {
-      if (randomNumber > distribution[i - 1] && randomNumber <= distribution[i]) {
-        return values[i];
-      }
-    }
-
-    // Edge case: the generated randomNumber is higher than the
-    // highest distribution range, which is smaller than 1 due
-    // to summation errors. In this case return the last given
-    // possible value
-    return values[values.length - 1];
+    return values[resultIndex];
   }
 
   public int[] getValues() {
