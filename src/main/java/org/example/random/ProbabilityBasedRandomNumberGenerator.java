@@ -142,21 +142,14 @@ public class ProbabilityBasedRandomNumberGenerator implements RandomNumberGenera
     // predefined value with the same index
     float randomNumber = random.nextFloat();
 
-    if (randomNumber <= distribution[0]) {
-      return values[0];
+    int resultIndex = Arrays.binarySearch(distribution, randomNumber);
+
+    if (resultIndex < 0) {
+      // resultIndex is the insertion point, use the previous index
+      resultIndex = Math.abs(resultIndex) - 1;
     }
 
-    for (int i = 1; i < distribution.length; i++) {
-      if (randomNumber > distribution[i - 1] && randomNumber <= distribution[i]) {
-        return values[i];
-      }
-    }
-
-    // Edge case: the generated randomNumber is higher than the
-    // highest distribution range, which is smaller than 1 due
-    // to summation errors. In this case return the last given
-    // possible value
-    return values[values.length - 1];
+    return values[resultIndex];
   }
 
   public int[] getValues() {
