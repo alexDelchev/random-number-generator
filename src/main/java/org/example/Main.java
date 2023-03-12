@@ -4,6 +4,7 @@ import org.example.random.ProbabilityBasedRandomNumberGenerator;
 import org.example.random.RandomNumberGenerator;
 
 import java.util.Arrays;
+import java.util.Random;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.IntStream;
 
@@ -22,7 +23,7 @@ public class Main {
     System.out.println("Probabilities: " + Arrays.toString(probabilities));
 
     RandomNumberGenerator generator =
-        new ProbabilityBasedRandomNumberGenerator(values, probabilities);
+        new ProbabilityBasedRandomNumberGenerator(new Random(), values, probabilities);
 
     float iterations = 1_000_000;
     AtomicInteger[] hits = atomicIntArray(values.length);

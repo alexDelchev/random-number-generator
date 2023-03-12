@@ -3,6 +3,8 @@ package org.example.random;
 
 import org.junit.jupiter.api.Test;
 
+import java.util.Random;
+
 class ProbabilityBasedRandomNumberGeneratorTest {
 
   @Test
@@ -12,7 +14,7 @@ class ProbabilityBasedRandomNumberGeneratorTest {
     int[] values = new int[] {1, 2, 3, 4, 5};
     float[] probabilities = new float[] {0.1f, 0.2f, 0.4f, 0.2f, 0.1f};
     RandomNumberGenerator generator =
-        new ProbabilityBasedRandomNumberGenerator(values, probabilities);
+        new ProbabilityBasedRandomNumberGenerator(new Random(), values, probabilities);
 
     // WHEN
     // generate random numbers and count how many times
@@ -44,49 +46,92 @@ class ProbabilityBasedRandomNumberGeneratorTest {
   }
 
   @Test
+  void nextNumWithPredefineSeedShouldRespectProbabilities() {
+    // GIVEN
+    long seed = 10L;
+    Random random = new Random(seed);
+
+    int iterations = 20;
+    int[] values = new int[] {1, 2, 3, 4, 5};
+    float[] probabilities = new float[] {0.1f, 0.2f, 0.4f, 0.2f, 0.1f};
+    RandomNumberGenerator generator =
+        new ProbabilityBasedRandomNumberGenerator(random, values, probabilities);
+
+    // WHEN
+    // generate random numbers and count how many times
+    // each value has occurred
+    int[] hits = new int[values.length];
+    for (int i=0; i < iterations; i++) {
+      int randomNumber = generator.nextNum();
+
+      for (int j=0; j<values.length; j++) {
+        if (randomNumber == values[j]) {
+          hits[j] ++;
+        }
+      }
+    }
+
+    // THEN
+    // check if values are distributed according to the used seed
+    int[] expectedHits = new int[] {2, 3, 9, 5, 1};
+    for (int i = 0; i < expectedHits.length; i++) {
+      assert hits[i] == expectedHits[i] :
+          String.format("Using seed %d, value %d was returned %d times, "
+              + "but was expecting %d times",
+              seed, values[i], hits[i], expectedHits[i]);
+    }
+  }
+
+  @Test
   void constructorNullArguments() {
     // GIVEN
+    Random random = new Random();
     int[] values = new int[1];
     float[] probabilities = new float[1];
 
     // THEN
-    assertThrown(() -> new ProbabilityBasedRandomNumberGenerator(values, null),
+    assertThrown(() -> new ProbabilityBasedRandomNumberGenerator(null, values, probabilities),
         IllegalArgumentException.class);
-    assertThrown(() -> new ProbabilityBasedRandomNumberGenerator(null, probabilities),
+    assertThrown(() -> new ProbabilityBasedRandomNumberGenerator(random, values, null),
         IllegalArgumentException.class);
-    assertThrown(() -> new ProbabilityBasedRandomNumberGenerator(null, null),
+    assertThrown(() -> new ProbabilityBasedRandomNumberGenerator(random, null, probabilities),
+        IllegalArgumentException.class);
+    assertThrown(() -> new ProbabilityBasedRandomNumberGenerator(null, null, null),
         IllegalArgumentException.class);
   }
 
   @Test
   void constructorEmptyArguments() {
     // GIVEN
+    Random random = new Random();
     int[] values = new int[1];
     float[] probabilities = new float[1];
 
     // THEN
-    assertThrown(() -> new ProbabilityBasedRandomNumberGenerator(values, new float[0]),
+    assertThrown(() -> new ProbabilityBasedRandomNumberGenerator(random, values, new float[0]),
         IllegalArgumentException.class);
-    assertThrown(() -> new ProbabilityBasedRandomNumberGenerator(new int[0], probabilities),
+    assertThrown(() -> new ProbabilityBasedRandomNumberGenerator(random, new int[0], probabilities),
         IllegalArgumentException.class);
-    assertThrown(() -> new ProbabilityBasedRandomNumberGenerator(new int[0], new float[0]),
+    assertThrown(() -> new ProbabilityBasedRandomNumberGenerator(random, new int[0], new float[0]),
         IllegalArgumentException.class);
   }
 
   @Test
   void constructorDifferentLengthArguments() {
     // GIVEN
+    Random random = new Random();
     int[] values = new int[2];
     float[] probabilities = new float[1];
 
     // THEN
-    assertThrown(() -> new ProbabilityBasedRandomNumberGenerator(values, probabilities),
+    assertThrown(() -> new ProbabilityBasedRandomNumberGenerator(random, values, probabilities),
         IllegalArgumentException.class);
   }
 
   @Test
   void constructorInvalidProbabilities() {
     // GIVEN
+    Random random = new Random();
     int[] values = new int[] {1, 2, 3, 4, 5, 6, 7, 8, 9, 10};
 
     // 10 x 0.01 = 1
@@ -101,9 +146,9 @@ class ProbabilityBasedRandomNumberGeneratorTest {
 
     // THEN
     assertNotThrown(() ->
-        new ProbabilityBasedRandomNumberGenerator(values, correctProbabilities));
+        new ProbabilityBasedRandomNumberGenerator(random, values, correctProbabilities));
     assertThrown(() ->
-        new ProbabilityBasedRandomNumberGenerator(values, incorrectProbabilities),
+        new ProbabilityBasedRandomNumberGenerator(random, values, incorrectProbabilities),
         IllegalArgumentException.class);
   }
 

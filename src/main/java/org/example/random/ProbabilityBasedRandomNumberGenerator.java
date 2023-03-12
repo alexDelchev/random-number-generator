@@ -2,16 +2,16 @@ package org.example.random;
 
 import java.util.Arrays;
 import java.util.Objects;
-import java.util.Random;
+import java.util.random.RandomGenerator;
 
 /**
  * A {@code RandomNumberGenerator} which returns predefined values
  * based on predefined probabilities.
  *
- * @implNote This class uses {@code float} arithmetic and {@link Random},
+ * @implNote This class uses {@code float} arithmetic and {@link RandomGenerator},
  * so precision is only approximate and results from
  * {@link #nextNum()} ultimately rely on the approximate
- * uniform distribution of {@code Random} return values.
+ * uniform distribution of the used {@code RandomGenerator} return values.
  */
 public class ProbabilityBasedRandomNumberGenerator implements RandomNumberGenerator {
 
@@ -19,7 +19,7 @@ public class ProbabilityBasedRandomNumberGenerator implements RandomNumberGenera
 
   private static final float MARGIN = 0.0001f;
 
-  private final Random random = new Random();
+  private final RandomGenerator randomGenerator;
 
   private final int[] values;
 
@@ -38,6 +38,9 @@ public class ProbabilityBasedRandomNumberGenerator implements RandomNumberGenera
    * non-null and non-empty, be of the same length, and each value and its
    * probability should have the same index.
    *
+   * @param randomGenerator implementation of {@link RandomGenerator} which
+   *        should produce uniformly distributed values between 0.0 and 1.0
+   *        on calls of {@link RandomGenerator#nextFloat()}
    * @param values {@code int} array containing the possible return values of
    *        {@link RandomNumberGenerator#nextNum()}. Must not be null or empty.
    * @param probabilities {@code float} array containing the respective
@@ -47,15 +50,22 @@ public class ProbabilityBasedRandomNumberGenerator implements RandomNumberGenera
    *        {@code RandomNumberGenerator#nextNum()} is called.
    * @throws IllegalArgumentException if parameters are invalid
    */
-  public ProbabilityBasedRandomNumberGenerator(int[] values, float[] probabilities) {
-    validateInputs(values, probabilities);
+  public ProbabilityBasedRandomNumberGenerator(RandomGenerator randomGenerator,
+                                               int[] values, float[] probabilities) {
+    validateInputs(randomGenerator, values, probabilities);
 
+    this.randomGenerator = randomGenerator;
     this.values = Arrays.copyOf(values, values.length);
     this.probabilities = Arrays.copyOf(probabilities, probabilities.length);
     this.distribution = plotProbabilities(probabilities);
   }
 
-  private void validateInputs(int[] values, float[] probabilities) {
+  private void validateInputs(RandomGenerator randomGenerator, int[] values,
+                              float[] probabilities) {
+    if (randomGenerator == null) {
+      throw new IllegalArgumentException("Parameter randomGenerator cannot be null");
+    }
+
     if (values == null) {
       throw new IllegalArgumentException("Parameter values cannot be null");
     }
@@ -142,7 +152,7 @@ public class ProbabilityBasedRandomNumberGenerator implements RandomNumberGenera
     // between 0.0 and 1.0. Use it to check in which
     // distribution range it is located and return the
     // predefined value with the same index
-    float randomNumber = random.nextFloat();
+    float randomNumber = randomGenerator.nextFloat();
 
     int resultIndex = Arrays.binarySearch(distribution, randomNumber);
 
