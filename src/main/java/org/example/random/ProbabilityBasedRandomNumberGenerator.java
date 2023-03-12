@@ -82,21 +82,17 @@ public class ProbabilityBasedRandomNumberGenerator implements RandomNumberGenera
     }
   }
 
-  private float sum(float[] data) {
-    return sum(data, 0, data.length - 1);
-  }
-
   /*
-   * Returns the sum of the elements between the given start (inclusive)
-   * and end (inclusive) indices. Corrects the floating point number summation
+   * Returns the sum of the elements of the given array.
+   * Corrects the floating point number summation
    * error as much as possible using the Kahan summation algorithm.
    */
-  private float sum(float[] data, int startInclusive, int endInclusive) {
+  private float sum(float[] values) {
     float sum = 0.0f;
     float error = 0.0f;
 
-    for (int i = startInclusive; i <= endInclusive; i++) {
-      float value = data[i] - error;
+    for (float v : values) {
+      float value = v - error;
       float currentSum = sum + value;
       error = (currentSum - sum) - value;
       sum = currentSum;
@@ -110,15 +106,21 @@ public class ProbabilityBasedRandomNumberGenerator implements RandomNumberGenera
   }
 
   /*
-   * Effectively returns a new float array of the same size whose elements
-   * represent the sum of the respective preceding elements from the original
-   * array.
+   * Returns a cumulative sum array based on the given array.
+   * Corrects the floating point number summation
+   * error as much as possible using the Kahan summation algorithm.
    */
   private float[] plotProbabilities(float[] probabilities) {
     float[] result = new float[probabilities.length];
+    float sum = 0.0f;
+    float error = 0.0f;
 
     for (int i = 0; i < probabilities.length; i++) {
-      result[i] = sum(probabilities, 0, i);
+      float value = probabilities[i] - error;
+      float currentSum = sum + value;
+      error = (currentSum - sum) - value;
+      sum = currentSum;
+      result[i] = currentSum;
     }
 
     return result;
